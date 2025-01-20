@@ -195,3 +195,103 @@ def plot_3d_by_y(axs, t, y_target, y_best, labels):
     axs.set_xlabel('Time')
     axs.set_ylabel('Value')
     axs.legend()
+
+
+#FOLLOWING: FOR LORENZ
+
+
+def plot_lorenz_2d_by_func(axs, ode_func, betas):
+    t = np.linspace(0, 10, 100)
+    IC = np.linspace(0.9, 1.8, 10)
+
+    for x in IC:
+        X0 = [x, x, x]  # Starting point for 3D Lorenz system
+        Xs = solve_ivp(ode_func, (t[0], t[-1]), X0, args=betas, t_eval=t, method='BDF').y.T
+        axs.plot(Xs[:, 0], Xs[:, 1], "-", label=f"IC:[{round(X0[0], 2)},{round(X0[1], 2)},{round(X0[2], 2)}]")
+    axs.set_title("Lorenz Phase-space by IC")
+    axs.set_xlabel("X")
+    axs.set_ylabel("Y")
+    axs.legend()
+
+def plot_lorenz_2d_by_y(axs, x0, ys, labels):
+    for y, label in zip(ys, labels):
+        axs.plot(y[:, 0], y[:, 1], "-", label=label)
+
+    axs.plot(x0[0], x0[1], 'ro')
+    axs.annotate(f'IC:[{round(x0[0], 1)},{round(x0[1], 1)}]', xy=(x0[0], x0[1]), xytext=(x0[0] + 0.5, x0[1] + 0.5),
+                 arrowprops=dict(facecolor='black', shrink=1))
+
+    x_min, x_max = ys[0][:, 0].min(), ys[0][:, 0].max()
+    y_min, y_max = ys[0][:, 1].min(), ys[0][:, 1].max()
+    axs.set_xlim(x_min - x_max * 0.1, x_max * 1.1)
+    axs.set_ylim(y_min - y_max * 0.1, y_max * 1.1)
+
+    axs.set_title("Best Estimate for Lorenz System")
+    axs.set_xlabel("X")
+    axs.set_ylabel("Y")
+
+def plot_lorenz_3d_estimates(axs, t, x0, ys, results, labels, title):
+    colors = plt.cm.tab10(np.linspace(0, 1, len(results)))  # Use a colormap for consistent colors
+
+    for result, label, color in zip(results, labels, colors):
+        axs.plot(t, result[:, 0], "-", label=label, alpha=0.8, color=color)
+        axs.plot(t, result[:, 1], "-", alpha=0.8, color=color)
+        axs.plot(t, result[:, 2], "-", alpha=0.8, color=color)
+
+    axs.plot(t, ys[:, 0], "-", label="Lorenz Solution", color='black')
+    axs.plot(t, ys[:, 1], "-", color='black')
+    axs.plot(t, ys[:, 2], "-", color='black')
+    axs.annotate(f'IC:[{round(x0[0], 1)},{round(x0[1], 1)}]', xy=(x0[0], x0[1]), xytext=(x0[0], x0[1]))
+
+    x_min, x_max = t.min(), t.max()
+    y_min = ys.min()
+    y_max = ys.max()
+
+    y_padding = 0.1 * (y_max - y_min)  # 10% of the range
+    axs.set_xlim(x_min, x_max)
+    axs.set_ylim(y_min - y_padding, y_max + y_padding)
+
+    axs.set_title(title)
+    axs.set_xlabel("Time (t)")
+    axs.set_ylabel("Lorenz States (X, Y, Z)")
+
+def plot_lorenz_loss_by_iteration(axs, results):
+    sorted_results = sorted(results, key=lambda result: len(funcs_to_str(get_functions(result['param']['f0ps']))))
+
+    for result in sorted_results:
+        axs.plot(np.arange(len(result['min_loss'])) + 1, result['min_loss'],
+                 label=funcs_to_str(get_functions(result['param']['f0ps'])), linestyle='-', alpha=0.8)
+    axs.plot([], [], label='Lorenz (Noisy)', color='black', linestyle='-', linewidth=2)
+
+    axs.set_xlabel("Generation")
+    axs.set_ylabel("Minimum Loss")
+    axs.set_title("Minimum Loss Over Generations for Lorenz")
+
+def plot_lorenz_invalid_by_iteration(axs, results):
+    sorted_results = sorted(results, key=lambda result: len(funcs_to_str(get_functions(result['param']['f0ps']))))
+
+    for result in sorted_results:
+        axs.plot(np.arange(len(result['invalid'])) + 1, result['invalid'],
+                 label=funcs_to_str(get_functions(result['param']['f0ps'])), linestyle='-', alpha=0.8)
+    axs.plot([], [], label='Lorenz (Noisy)', color='black', linestyle='-', linewidth=2)
+
+    axs.set_xlabel("Generation")
+    axs.set_ylabel("Invalid Solutions")
+    axs.set_title("Invalid Solutions Over Generations for Lorenz")
+
+def plot_lorenz_results(history, t, x0, best, y_target):
+    fig, axs = plt.subplots(2, 2, figsize=(12, 9))
+
+    # Phase space plot for Lorenz system
+    plot_lorenz_2d_by_func(axs[0, 0], best[2], best[0].x)
+    plot_lorenz_2d_by_y(axs[0, 1], x0, [y_target], ["Noisy Target"])
+
+    # Time-series plot for Lorenz system
+    plot_lorenz_3d_estimates(axs[1, 0], t, x0, y_target, [best[2]], ["Best Estimate"], "Lorenz System Estimates")
+
+    # Loss and invalidity plots
+    plot_lorenz_loss_by_iteration(axs[1, 1], history)
+    plot_lorenz_invalid_by_iteration(axs[1, 1], history)
+
+    plt.tight_layout()
+    plt.show()

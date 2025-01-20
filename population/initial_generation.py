@@ -57,7 +57,27 @@ def generate_term(variables, config, non_empty):
     var_list = []
     j = 0
 
-    weights = [1 / len(config.f0ps)] * len(config.f0ps) # todo - term distribution /  [0.5 if op == 5 else 0.2 / (len(config.f0ps) - 1) for op in config.f0ps]
+    #SANDRA: ADDED THIS
+    sigma_target = 10
+    rho_target = 28
+    beta_target = 8 / 3
+
+    # Define weights inversely proportional to the parameters, normalized to sum to 1
+    total = sigma_target + rho_target + beta_target
+    weights = [sigma_target / total, rho_target / total, beta_target / total]
+    num_f0ps = len(config.f0ps)  # Get the length of config.f0ps
+    if num_f0ps > 3:
+        # If there are more than 3 elements, distribute weights proportionally across the first 3, and assign 0s to the rest
+        weights += [0] * (num_f0ps - 3)
+    elif num_f0ps < 3:
+        # If there are fewer than 3 elements, we can just scale the Lorenz weights to match the number of elements
+        scale_factor = 3 / num_f0ps
+        weights = [w * scale_factor for w in weights[:num_f0ps]]
+
+    
+    #SANDRA: COMMENTED THIS OUT  
+    #weights = [1 / len(config.f0ps)] * len(config.f0ps) # todo - term distribution /  [0.5 if op == 5 else 0.2 / (len(config.f0ps) - 1) for op in config.f0ps]
+    
     if non_empty or rd.randint(0, 1) == 1: # equation to have at least one term
         for var in variables:
             if j == 0 or rd.randint(0, 1) == 1:

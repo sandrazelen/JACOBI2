@@ -7,23 +7,26 @@ from utils.history import save_history
 from utils.load_systems import create_ode_function, load_systems
 from utils.mapping import get_individual_solved, add_individual_solved, \
     get_solved_map, get_term_map, convert_system_to_hash
-from utils.models import SIR
+from utils.models import SIR, lorenz, lotka
 from utils.plots import plot_loss_by_iteration, plot_invalid_by_iteration, \
-    plot_3d_by_y
+    plot_3d_by_y, plot_lorenz_3d_estimates
 import matplotlib.pyplot as plt
 import warnings
 
 class Config:
     def __init__(self):
-        self.target = SIR()
+        
+        
+        self.target = lorenz()
+        #self.target = SIR()
 
-        self.G = 20  # Number of generations
-        self.N = 200  # Maximum number of population
+        self.G = 5  # Number of generations
+        self.N = 100  # Maximum number of population
         self.M = 3  # Maximum number of equations
-        self.I = 2  # Maximum number of terms per equation
+        self.I = 3  # Maximum number of terms per equation
         self.J = 2  # Maximum number of functions per feature
         self.allow_composite = False  # Composite Functions
-        self.f0ps = get_functions("4,5,6,9")
+        self.f0ps = get_functions("5")
         self.ivp_method = 'Radau'
         self.minimize_method = 'Nelder-Mead' # L-BFGS-B, COBYLA, COBYQA, TNC
 
@@ -34,8 +37,11 @@ class Config:
 
         self.selection_gamma = 0.9
 
-        self.system_load_dir = 'data/differential_equations.txt' #data/results/SIR/sir_equations.txt'
-        self.system_save_dir = 'data/differential_equations.txt'
+        #self.system_load_dir = 'data/differential_equations.txt' #data/results/SIR/sir_equations.txt'
+        #self.system_save_dir = 'data/differential_equations.txt'
+        
+        self.system_load_dir = f"C:/Users/misss/OneDrive/Desktop/JACOBI2/data/differential_equations.txt"
+        self.system_save_dir = f"C:/Users/misss/OneDrive/Desktop/JACOBI2/data/differential_equations.txt"
 
         self.DEBUG = False
 
@@ -129,9 +135,16 @@ def main():
 
     y_best = solve_ivp(best[2], (t[0], t[-1]), X0, args=tuple(best[0].x), t_eval=t, method=config.ivp_method).y.T
     fig, axs = plt.subplots(2, 2, figsize=(12, 9))
-    plot_3d_by_y(axs[0, 0], t, y_target, [y_best], ["Best"]) ### SIR
+    
+    #SANDRA: ADDED THIS LINE
+    plot_lorenz_3d_estimates(axs[0, 0], t, X0, y_target, [y_best], ["Best Estimate"], "Lorenz System Estimates")
+    
+    #SANDRA: COMMENTED OUT THE FOLLOOWING LINE
+    #plot_3d_by_y(axs[0, 0], t, y_target, [y_best], ["Best"]) ### SIR
+    
     # plot_2d_by_func(axs[0, 0], config.target.func, config.target.betas) ### Lotka
     # plot_2d_by_y(axs[0, 1], X0,[y_raw, y_target, y_best], ["TARGET_RAW", "TARGET_NOISED", "BEST"])
+    
     plot_loss_by_iteration(axs[1, 0], min_loss, avg_loss)
     plot_invalid_by_iteration(axs[1, 1], invalid)
 
@@ -141,7 +154,7 @@ def main():
     fig.text(0.03, 0.08, note, va='top', fontsize=10, bbox=dict(facecolor='white', alpha=0.8))
     plt.tight_layout(rect=[0, 0.1, 1, 1])
     plt.show()
-
+    
 
 if __name__ == "__main__":
     main()

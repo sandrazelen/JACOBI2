@@ -45,13 +45,6 @@ class lorenz():
         self.X0 = [1.0, 1.0, 1.0]
         self.betas = [10.0, 28.0, 8/3] 
 
-def lotka_logistic():
-    pass
-
-class lotka_log():
-    def __init__(self):
-        pass
-    
 def lotka_logistic_func(t, X, alpha, beta, delta, gamma, K):
     x, y = X
     dotx = alpha * x * (1 - x / K) + beta * x * y
@@ -64,13 +57,6 @@ class lotka_log():
         self.N = 2  
         self.X0 = [1.8, 1.3] 
         self.betas = [2 / 3, -4 / 3, -1, 1, 50]
-
-def hh_func():
-    pass
-
-class HH():
-    def __init__(self):
-        pass
 
 def hodgkin_huxley_func(t, X, I_ext, C_m, g_Na, g_K, g_L, E_Na, E_K, E_L):
     V, m, h, n = X
@@ -110,14 +96,7 @@ class HodgkinHuxley():
             "E_Na": 50.0,  # Sodium reversal potential
             "E_K": -77.0,  # Potassium reversal potential
             "E_L": -54.387  # Leak reversal potential
-        }
-        
-def brusselator_func():
-    pass
-
-class brusselator():
-    def __init__(self):
-        pass
+        }    
 
 def brusselator_func(t, X, A, B):
     x, y = X
@@ -132,13 +111,6 @@ class Brusselator():
         self.X0 = [1.0, 1.0]  
         self.betas = [1.0, 3.0] 
 
-def fhn_func():
-    pass
-
-class FHN():
-    def __init__(self):
-        pass
-
 def fitzhugh_nagumo_func(t, X, a, b, epsilon, I_ext):
     v, w = X
     dotv = v - (v**3 / 3) - w + I_ext
@@ -152,15 +124,6 @@ class FitzHughNagumo():
         self.X0 = [0.0, 0.0]  # Initial conditions for v and w
         self.betas = [0.7, 0.8, 0.08, 0.5]
         
-        """
-        self.betas = {
-            "a": 0.7,      # Default parameter a
-            "b": 0.8,      # Default parameter b
-            "epsilon": 0.08,  # Default parameter epsilon
-            "I_ext": 0.5   # Default external stimulus
-        }
-        """
-    
 
 
         

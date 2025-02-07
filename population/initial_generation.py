@@ -39,7 +39,23 @@ def generate_systems(N, config):
             for i in range(config.I):
                 term = generate_term(v, config, i == 0)
                 if term is not None and not term in terms:
-                    terms.append(term)
+                    terms.append(term) 
+            terms_sort = {'6': [], '9':[], '13':[]}
+            for term in terms:
+                #print(term)
+                #print(str(term))
+                #print(len(str(term)))
+                if(len(str(term))==6):
+                    terms_sort['6'].append(term)
+                elif(len(str(term))==9):
+                    terms_sort['9'].append(term)
+                else:
+                    terms_sort['13'].append(term)
+            terms_sorted = terms_sort['6'] + terms_sort['9'] + terms_sort['13']
+            #print("sorted terms are: ", terms_sorted)
+            terms = terms_sorted 
+            #print(terms)
+                
             system.append([sp.diff(variables[m], t), terms])
 
         s_hash = convert_system_to_hash(system)
@@ -50,6 +66,8 @@ def generate_systems(N, config):
 
     return systems
 
+
+
 """
 def generate_term(variables, config, non_empty):
     rd.shuffle(variables)
@@ -57,33 +75,37 @@ def generate_term(variables, config, non_empty):
     var_list = []
     j = 0
 
-    
-    #SANDRA: COMMENTED THIS OUT  
-    weights = [1 / len(config.f0ps)] * len(config.f0ps) # todo - term distribution /  [0.5 if (op == 5 or op == 6) else 0.2 / (len(config.f0ps) - 1) for op in config.f0ps]
-    #weights =  [0.5 if op == 5 else 0.15 / (len(config.f0ps) - 1) for op in config.f0ps]
- 
-    
-    if non_empty or rd.randint(0, 1)==1: # equation to have at least one term
+    #weights = [1 / len(config.f0ps)] * len(config.f0ps) # todo - term distribution
+    weights = [
+    0.8 if op == 5 else 
+    0.15 if op == 6 else 
+    0.1 / (len(config.f0ps) - 2)  # Remaining weight for other operators
+    for op in config.f0ps
+    ]
+
+    if non_empty or rd.randint(0, 99) < 90: # equation to have at least one term
         for var in variables:
-            if j == 0 or rd.randint(0,1)==1:
+            if j == 0 or rd.randint(0, 99) < 40:
                 func = f(rd.choices(config.f0ps, weights=weights, k=1)[0])# todo
                 var = func(var)
                 j += 1
-                if config.allow_composite and j < config.J:  # limit applying composite to only once
-                    if rd.randint(0, 1) == 1:
-                        func = f(rd.choices(config.fOps, weights=weights, k=1)[0])
-                        var = func(var)
-                        j += 1
+                
+                #if config.allow_composite and j < config.J:  # limit applying composite to only once
+                #    if rd.randint(0, 99) < 60:
+                #        func = f(rd.choices(config.f0ps, weights=[1.0,0.0], k=1)[0])
+                #        var = func(var)
+                #        j += 1
                 var_list.append(var)
                 if j == config.J: break
 
     if var_list:
         term = var_list[0]
         for var in var_list[1:]:
-            operator = o(rd.randint(0, 1))
+            operator = o(0)
             term = operator(term, var)
 
     return term
+
 """
 
 def generate_term(variables, config, non_empty):
@@ -92,35 +114,120 @@ def generate_term(variables, config, non_empty):
     var_list = []
     j = 0
 
-    # Weights for term distribution (you already have this part)
-    #weights = [1 / len(config.f0ps)] * len(config.f0ps)
-    
-    weights =  [0.5 if op == 5 else 0.15 / (len(config.f0ps) - 1) for op in config.f0ps]
-    
-    num_terms = rd.choices([2, 3], k=1)[0] 
+    #weights = [1 / len(config.f0ps)] * len(config.f0ps) # todo - term distribution
+    weights = [
+    0.8 if op == 5 else 
+    0.2 if op == 6 else 
+    0.1 / (len(config.f0ps) - 2)  # Remaining weight for other operators
+    for op in config.f0ps
+    ]
 
-    while len(var_list) < num_terms:  # Generate the number of terms selected
-        if non_empty or rd.randint(0, 1) == 1:  # Ensure non-empty or random condition
-            for var in variables:
-                if j == 0 or rd.randint(0, 1) == 1:
+    if non_empty or rd.randint(0, 99) < 90: # equation to have at least one term
+        for index, var in enumerate(variables):
+        
+            if j == 0 or rd.randint(0, 99) < 40:
+                if index ==1:
+                    #FOR CASE 5,6 USE THIS
+                    func = f(5)
+                    #func= f(rd.choices(config.f0ps, weights=weights, k=1)[0])
+                
+                else:
                     func = f(rd.choices(config.f0ps, weights=weights, k=1)[0])
-                    var = func(var)
-                    j += 1
-                    if config.allow_composite and j < config.J:  # composite condition
-                        if rd.randint(0, 1) == 1:
-                            func = f(rd.choices(config.fOps, weights=weights, k=1)[0])
-                            var = func(var)
-                            j += 1
-                    var_list.append(var)
-                    if j == config.J: break
+                
+                var = func(var)
+                j += 1
+                var_list.append(var)
+                if j == config.J: break
 
     if var_list:
         term = var_list[0]
         for var in var_list[1:]:
-            operator = o(rd.randint(0, 1))
+            operator = o(0)
             term = operator(term, var)
 
     return term
+
+
+
+
+"""
+
+def generate_term(variables, config, non_empty):
+    rd.shuffle(variables)
+    term = None
+    var_list = []
+    j = 0
+
+    # Prioritize constants and linear terms
+    weights = [0.4 if op == 0 else 0.4 if op == 5 else 0.2 for op in config.f0ps]
+    # Prioritize quadratic operators
+    f_op_weights = [0.9 if op == 6 else 0.1 for op in config.f0ps]
+
+    if non_empty or rd.randint(0, 99) < 75:  # Ensure at least one term in the equation
+        for i, var in enumerate(variables):
+            if i == 0:  # Apply composite operations only to the first variable
+                func = f(rd.choices(config.f0ps, weights=weights, k=1)[0])
+                var = func(var)  # Apply the first operation
+                j += 1
+
+                
+                var_list.append(var)
+            else:  # For additional variables, only apply simple operations
+                if rd.randint(0, 99) < 70:  # Adjust to ensure interaction terms like x^2y
+                    func = f(rd.choices(config.f0ps, weights=f_op_weights, k=1)[0])  # Prioritize quadratic terms
+                    var = func(var)
+                    var_list.append(var)
+                    j += 1
+                    if j == config.J:
+                        break
+
+    if var_list:
+        term = var_list[0]
+        for var in var_list[1:]:
+            operator=o(0)
+            #operator = o(rd.randint(0, 1))
+            term = operator(term, var)
+
+    return term
+
+def generate_term(variables, config, non_empty):
+    rd.shuffle(variables)  # Shuffle variables to randomize order
+    term = None
+    var_list = []
+    j = 0
+
+    # Prioritize constants and linear terms for non-composite operations
+    weights = [0.5 if op == 0 else 0.4 if op == 5 else 0.1 for op in config.f0ps]
+
+
+    if non_empty or rd.randint(0, 99) < 75:  # Ensure at least one term in the equation
+        for i, var in enumerate(variables):
+            if j == 0 or rd.randint(0, 99) < 75:  # Prioritize first variable or add additional variables
+                # Apply a function to the first variable (constant or linear)
+                func1 = f(rd.choices(config.f0ps, weights=weights, k=1)[0])
+                var = func1(var)  # Apply the operation (constant or linear)
+                j += 1
+
+                # Append the first variable to the list
+                var_list.append(var)
+
+                # Add additional variables with simple (non-composite) operations
+                for other_var in variables[1:]:
+                    if rd.randint(0, 99) < 45:  # Decide whether to add this variable
+                        var_list.append(other_var)  # Add the variable as-is (linear interaction)
+                        j += 1
+                        if j == config.J:
+                            break
+
+    if var_list:
+        term = var_list[0]
+        
+        for var in var_list[1:]:
+            operator = o(0)  # Prioritize multiplication operator for interactions (e.g., x * y)
+            term = operator(term, var)
+    
+    return term
+"""
 
 
 def beautify_equation(eq, beta_start):
@@ -269,6 +376,33 @@ def manual_lotka_systems():
          ]
          ]
     ]
-    return [system0, system1, system2, system3]
+    return [system0, system1, system2, system3] # return [system0, system1, system2, system3, system4]
 
-    # return [system0, system1, system2, system3, system4]
+
+def manual_lorenz_systems():
+    variables = [create_variable(i) for i in range(1, 4)]
+    linear = f(5)
+    mult = o(0)
+
+    system0 = [
+        [sp.diff(variables[0], t),
+         [
+             linear(variables[0]),
+             linear(variables[1])
+         ]
+         ],
+        [sp.diff(variables[1], t),
+         [
+             linear(variables[0]),
+             mult(linear(variables[0]), linear(variables[2])),
+             linear(variables[1]),
+         ]
+         ],
+        [sp.diff(variables[2], t),
+         [
+             mult(linear(variables[0]), linear(variables[1])),
+             linear(variables[2])
+         ]
+         ],
+    ]
+    return [system0]

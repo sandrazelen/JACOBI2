@@ -7,34 +7,50 @@ from utils.history import save_history
 from utils.load_systems import create_ode_function, load_systems
 from utils.mapping import get_individual_solved, add_individual_solved, \
     get_solved_map, get_term_map, convert_system_to_hash
-from utils.models import SIR, lorenz, lotka, lotka_log, Brusselator, FitzHughNagumo
+from utils.models import SIR, lorenz, lotka, lotka_log, Brusselator, FitzHughNagumo, HodgkinHuxley
 from utils.plots import plot_loss_by_iteration, plot_invalid_by_iteration, \
     plot_3d_by_y, plot_lorenz_3d_estimates, plot_2d_by_func
 import matplotlib.pyplot as plt
 import warnings
 
+def calculate_r_squared(y_true, y_pred):
+    """
+    Calculate the coefficient of determination (R^2).
+    :param y_true: Observed data (numpy array)
+    :param y_pred: Predicted data (numpy array)
+    :return: R^2 value
+    """
+    ss_total = np.sum((y_true - np.mean(y_true, axis=0))**2)
+    ss_residual = np.sum((y_true - y_pred)**2)
+    r_squared = 1 - (ss_residual / ss_total)
+    return r_squared
+
+
 class Config:
     def __init__(self):
+        #self.target = HodgkinHuxley()
         #self.target=FitzHughNagumo()
-        self.target = Brusselator()
-        #self.target = lotka_log()
+        #self.target = Brusselator()
+        self.target = lotka_log()
         #self.target = SIR()
         #self.target = lorenz()
         
-        self.G = 50  # Number of generations
-        self.N = 400 # Maximum number of population
+        self.G = 5 # Number of generations
+        self.N = 50 # Maximum number of population
         self.M = 2 # Maximum number of equations
         self.I = 3  # Maximum number of terms per equation
         self.J = 2  # Maximum number of functions per feature
         self.allow_composite = False  # Composite Functions
-        self.f0ps = get_functions("0,5,6")
+        self.f0ps = get_functions("5,6")
         self.ivp_method = 'Radau'
         #self.ivp_method = 'RK45'
         #self.minimize_method = 'Nelder-Mead' # L-BFGS-B, COBYLA, COBYQA, TNC
-        #self.minimize_method = 'L-BFGS-B'
+        self.minimize_method = 'L-BFGS-B'
         #self.minimize_method = 'BFGS'
-        self.minimize_method = 'COBYLA'
-        self.elite_rate = 0.2
+        #self.minimize_method = 'TNC'
+        #self.minimize_method = 'COBYLA'
+        #self.minimize_method = 'Nelder-Mead'
+        self.elite_rate = 0.1
         self.crossover_rate = 0.4
         self.mutation_rate = 0.6
         self.new_rate = 0.1
@@ -61,7 +77,8 @@ def main():
     #                         TARGET DATA                                 #
     #######################################################################
 
-    t = np.linspace(0, 100, 1000)
+    t = np.linspace(0,20,1000)
+    #t=np.linspace(0,10,100)
     X0 = config.target.X0  # np.random.rand(config.target.N) + 1.0  # 1.0~2.0
     print(f"true_betas: {config.target.betas} | Initial Condition: {X0}")
 
@@ -69,8 +86,8 @@ def main():
                       method=config.ivp_method).y.T
     
     #THIS ADDS NOISE TO THE RAW
-    y_target = y_raw + np.random.normal(0.0, 0.01, y_raw.shape) #0.02
-    #y_target = y_raw
+    #y_target = y_raw + np.random.normal(0.0, 0.1, y_raw.shape) #0.02
+    y_target = y_raw
     #######################################################################
     #                         INITIAL POPULATION                          #
     #######################################################################
@@ -101,13 +118,17 @@ def main():
                     num_betas = sum(len(eq[1]) for eq in population[j])
                     #num_betas = count_betas(population[j])
                     #initial_guess = np.zeros(config.I * config.M)
+                    
                     initial_guess = np.concatenate(
-                        [[1.0, 3.0][:num_betas], np.zeros(max(0, num_betas - 2))]
+                        [[2 / 3, -2/150, -4 / 3, -1, 1][:num_betas], np.zeros(max(0, num_betas - 2))]
+                        #[[2 / 3, -4 / 3, -1, 1, 50][:num_betas], np.zeros(max(0, num_betas - 2))]
+                        #[[0.5, -0.1, 0.1, 0.05, 10], np.zeros(max(0, num_betas - 2))]
+
                     )
+                    
                     solved = estimate_parameters(ode_func, X0, t, y_target, initial_guess , config.minimize_method,
                                                  config.ivp_method, config.DEBUG)
                     add_individual_solved(system_hash, solved)
-
                 history[i].append((solved, population[j], ode_func))
                 print(
                     f"### Generation {i} #{j} | Error: {round(solved.fun, 4)} | System: {beautify_system(population[j])} | Solved Parameters: {solved.x}")
@@ -133,7 +154,8 @@ def main():
     for i, generation in enumerate(history):
         loss = []
         for j, individual in enumerate(generation):
-            if config.DEBUG: print(
+            if config.DEBUG: 
+                print(
                 f'generation {i} {j} | loss:{round(individual[0].fun, 4)} func: {beautify_system(individual[1])} param:{individual[0].x}')
             loss.append(individual[0].fun)
             if best is None or individual[0].fun < best[0].fun:
@@ -143,14 +165,22 @@ def main():
         invalid.append(sum(l >= 100 for l in loss))
 
     print(f'\nBest | Loss:{best[0].fun} func: {best[1]} param:{best[0].x}')
+    
+    # Compute R^2 for the best estimate
+
 
     y_best = solve_ivp(best[2], (t[0], t[-1]), X0, args=tuple(best[0].x), t_eval=t, method=config.ivp_method).y.T
+
+    
+    r_squared = calculate_r_squared(y_target, y_best)
+    print(f"R^2 for the best estimate: {r_squared:.4f}")
+    
     fig, axs = plt.subplots(2, 2, figsize=(12, 9))
     
     #SANDRA: ADDED THIS LINE
     #plot_lorenz_3d_estimates(axs[0, 0], t, X0, y_target, [y_best], ["Best Estimate"], "Lorenz System Estimates")
     
-    #SANDRA: COMMENTED OUT THE FOLLOOWING LINE
+    #SANDRA: COMMENTED OUT THE FOLLOWING LINE
     #plot_3d_by_y(axs[0, 0], t, y_target, [y_best], ["Best"]) ### SIR
     
     plot_2d_by_func(axs[0, 0], config.target.func, config.target.betas) ### Lotka

@@ -18,7 +18,7 @@ def save_history(config, history, time_records):
                       'System': beautify_system(individual[1]), 'param': individual[0].x}
             results.append(result)
 
-    filename = (f"./data/results/{str(config.target.__class__.__name__)}_{str(config.f0ps)}"
+    filename = (f"C:/Users/misss/OneDrive/Desktop/JACOBI2/data/results/{str(config.target.__class__.__name__)}_{str(config.f0ps)}"
                 f"_G{config.G}_N{config.N}_M{config.M}_I{config.I}_J{config.I}_{config.minimize_method}"
                 f"_{int(config.elite_rate * 100)}_{int(config.crossover_rate * 100)}"
                 f"_{int(config.mutation_rate * 100)}_{int(config.new_rate * 100)}.pkl")

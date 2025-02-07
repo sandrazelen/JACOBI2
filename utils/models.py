@@ -45,6 +45,7 @@ class lorenz():
         self.X0 = [1.0, 1.0, 1.0]
         self.betas = [10.0, 28.0, 8/3] 
 
+"""
 def lotka_logistic_func(t, X, alpha, beta, delta, gamma, K):
     x, y = X
     dotx = alpha * x * (1 - x / K) + beta * x * y
@@ -57,6 +58,22 @@ class lotka_log():
         self.N = 2  
         self.X0 = [1.8, 1.3] 
         self.betas = [2 / 3, -4 / 3, -1, 1, 50]
+        
+"""
+
+def lotka_logistic_func(t, X, alpha, K, beta, delta, gamma):
+    x, y = X
+    dotx = alpha * x + K * x**2 + beta * x * y
+    doty = delta * y + gamma * x * y
+    return np.array([dotx, doty])
+
+class lotka_log():
+    def __init__(self):
+        self.func = lotka_logistic_func
+        self.N = 2  
+        self.X0 = [1.8, 1.3] 
+        self.betas = [2 / 3, -2/150, -4 / 3, -1, 1]
+
 
 def hodgkin_huxley_func(t, X, I_ext, C_m, g_Na, g_K, g_L, E_Na, E_K, E_L):
     V, m, h, n = X
@@ -87,6 +104,8 @@ class HodgkinHuxley():
         self.func = hodgkin_huxley_func
         self.N = 4  # Number of equations: V, m, h, n
         self.X0 = [-65, 0.05, 0.6, 0.32]  # Initial conditions for V, m, h, n
+        self.betas = [10.0, 1.0, 120.0, 36.0, 0.3, 50.0, -77.0, -54.387]
+        """
         self.betas = {
             "I_ext": 10.0,  # External current
             "C_m": 1.0,  # Membrane capacitance
@@ -97,6 +116,7 @@ class HodgkinHuxley():
             "E_K": -77.0,  # Potassium reversal potential
             "E_L": -54.387  # Leak reversal potential
         }    
+        """
 
 def brusselator_func(t, X, A, B):
     x, y = X

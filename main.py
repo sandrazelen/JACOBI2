@@ -1,56 +1,39 @@
 from population.genetic_algorithm import generate_new_population
 from evaluators.parameter_estimation import *
-from population.initial_generation import generate_population, beautify_system, manual_sir_systems
+from population.initial_generation import generate_population, beautify_system
 from utils.functions import get_functions, funcs_to_str
 from utils.history import save_history
-
 from utils.load_systems import create_ode_function, load_systems
 from utils.mapping import get_individual_solved, add_individual_solved, \
     get_solved_map, get_term_map, convert_system_to_hash
-from utils.models import SIR, lorenz, lotka, lotka_log, Brusselator, FitzHughNagumo, HodgkinHuxley
+from utils.models import SIR, lorenz, lotka, lotka_log, Brusselator, FHN, FisherKPP
 from utils.plots import plot_loss_by_iteration, plot_invalid_by_iteration, \
     plot_3d_by_y, plot_lorenz_3d_estimates, plot_2d_by_func
+
 import matplotlib.pyplot as plt
 import warnings
-
-def calculate_r_squared(y_true, y_pred):
-    """
-    Calculate the coefficient of determination (R^2).
-    :param y_true: Observed data (numpy array)
-    :param y_pred: Predicted data (numpy array)
-    :return: R^2 value
-    """
-    ss_total = np.sum((y_true - np.mean(y_true, axis=0))**2)
-    ss_residual = np.sum((y_true - y_pred)**2)
-    r_squared = 1 - (ss_residual / ss_total)
-    return r_squared
-
+import numpy as np 
+from scipy.optimize import minimize
 
 class Config:
     def __init__(self):
-        #self.target = HodgkinHuxley()
-        #self.target=FitzHughNagumo()
-        #self.target = Brusselator()
-        self.target = lotka_log()
-        #self.target = SIR()
-        #self.target = lorenz()
+        self.target = FisherKPP()
         
         self.G = 5 # Number of generations
-        self.N = 50 # Maximum number of population
+        self.N = 15 # Maximum number of population
         self.M = 2 # Maximum number of equations
-        self.I = 3  # Maximum number of terms per equation
-        self.J = 2  # Maximum number of functions per feature
+        self.I = 4  # Maximum number of terms per equation
+        self.J = 1  # Maximum number of functions per feature
         self.allow_composite = False  # Composite Functions
-        self.f0ps = get_functions("5,6")
-        self.ivp_method = 'Radau'
-        #self.ivp_method = 'RK45'
-        #self.minimize_method = 'Nelder-Mead' # L-BFGS-B, COBYLA, COBYQA, TNC
+        self.f0ps = get_functions("5,6,11")
+        
+        #self.ivp_method = 'Radau'
+        
+        #self.ivp_method = 'BDF'
+        self.ivp_method = 'LSODA'
         self.minimize_method = 'L-BFGS-B'
-        #self.minimize_method = 'BFGS'
-        #self.minimize_method = 'TNC'
-        #self.minimize_method = 'COBYLA'
-        #self.minimize_method = 'Nelder-Mead'
-        self.elite_rate = 0.1
+        
+        self.elite_rate = 0.2
         self.crossover_rate = 0.4
         self.mutation_rate = 0.6
         self.new_rate = 0.1
@@ -64,39 +47,54 @@ class Config:
         self.system_save_dir = f"C:/Users/misss/OneDrive/Desktop/JACOBI2/data/differential_equations.txt"
 
         self.DEBUG = False
-
-
+        
 def main():
     #######################################################################
     #                         PARAMETERS                                  #
     #######################################################################
 
     config = Config()
+    
+    # Time grid
+    """
+    t_span = np.linspace(0, 5, 100) 
+    
+    spatial_grid = np.linspace(0, 1, 100)  
+    
+    """
+    
+    t_span = np.linspace(0, 20, 100) 
+    
+    spatial_grid = np.linspace(0, 30, 100)  
+
+    X0 = config.target.X0
+    X0 = np.array(X0)
+    print(X0)
+    print("Shape of X0:", X0.shape)
+    
+    X0=X0.flatten()
+    print("Shape of X0:", X0.shape)
+
+    # Target data for system (Fisher-KPP or FHN)
+    y_target = config.target.solve_fisher_kpp(t_span, spatial_grid)  
+    print("Y TARGET IS : ", y_target)
 
     #######################################################################
     #                         TARGET DATA                                 #
     #######################################################################
 
-    t = np.linspace(0,20,1000)
-    #t=np.linspace(0,10,100)
-    X0 = config.target.X0  # np.random.rand(config.target.N) + 1.0  # 1.0~2.0
     print(f"true_betas: {config.target.betas} | Initial Condition: {X0}")
 
-    y_raw = solve_ivp(config.target.func, (t[0], t[-1]), X0, args=config.target.betas, t_eval=t,
-                      method=config.ivp_method).y.T
-    
-    #THIS ADDS NOISE TO THE RAW
-    #y_target = y_raw + np.random.normal(0.0, 0.1, y_raw.shape) #0.02
-    y_target = y_raw
     #######################################################################
     #                         INITIAL POPULATION                          #
     #######################################################################
 
-    population = generate_population(config) #manual_lotka_systems()
+    # Generate initial population
+    population = generate_population(config)
     systems = load_systems(config.system_load_dir)
 
     #######################################################################
-    #                         RUN                                     #
+    #                         RUN                                         #
     #######################################################################
 
     with warnings.catch_warnings():
@@ -109,34 +107,40 @@ def main():
 
             start_time = time.time()
             history.append([])
+
             for j, system in enumerate(systems):
                 system_hash = convert_system_to_hash(population[j])
                 solved = get_individual_solved(system_hash)
 
                 if not solved:
                     ode_func = create_ode_function(system)
-                    num_betas = sum(len(eq[1]) for eq in population[j])
-                    #num_betas = count_betas(population[j])
-                    #initial_guess = np.zeros(config.I * config.M)
-                    
-                    initial_guess = np.concatenate(
-                        [[2 / 3, -2/150, -4 / 3, -1, 1][:num_betas], np.zeros(max(0, num_betas - 2))]
-                        #[[2 / 3, -4 / 3, -1, 1, 50][:num_betas], np.zeros(max(0, num_betas - 2))]
-                        #[[0.5, -0.1, 0.1, 0.05, 10], np.zeros(max(0, num_betas - 2))]
 
+                    num_betas = sum(len(eq[1]) for eq in population[j])
+                    """
+                    initial_guess = np.concatenate(
+                        #[np.random.uniform(-1.2, 1.5, size=num_betas)]
+                        #[np.random.uniform(-1.5, 1.5, size=num_betas)]
+                        [np.random.uniform(-1.0, 1.0, size=num_betas)]
                     )
-                    
-                    solved = estimate_parameters(ode_func, X0, t, y_target, initial_guess , config.minimize_method,
-                                                 config.ivp_method, config.DEBUG)
+                    """
+                    initial_guess = np.concatenate(
+                        [[1.5, -1.5, 1.2, 0.1, 1.2, -1.2, 0.72, 0.2][:num_betas], np.zeros(max(0, num_betas - 8))]
+                    )
+
+                    solved = estimate_parameters(ode_func, X0, t_span, y_target, initial_guess , config.minimize_method,config.ivp_method, config.DEBUG)
+            
                     add_individual_solved(system_hash, solved)
+
                 history[i].append((solved, population[j], ode_func))
                 print(
                     f"### Generation {i} #{j} | Error: {round(solved.fun, 4)} | System: {beautify_system(population[j])} | Solved Parameters: {solved.x}")
 
             end_time = time.time()
-            time_records.append(end_time-start_time)
-            print(f"Completed Generation {i}: {end_time-start_time} | term_map:{len(get_term_map())}, solved_map:{len(get_solved_map())}")
+            time_records.append(end_time - start_time)
+            print(f"Completed Generation {i}: {end_time - start_time} | term_map:{len(get_term_map())}, solved_map:{len(get_solved_map())}")
+            
             if i < config.G - 1:
+                # Generate new population for the next generation
                 population = generate_new_population(history[i], population, config)
                 systems = load_systems(config.system_load_dir)
 
@@ -144,9 +148,10 @@ def main():
     #                         RESULT                                      #
     #######################################################################
 
+    # Save the history and performance over time
     save_history(config, history, time_records)
 
-    # print("\n#### RESULT ####")
+    # Final best result
     best = None
     min_loss = []
     avg_loss = []
@@ -156,7 +161,7 @@ def main():
         for j, individual in enumerate(generation):
             if config.DEBUG: 
                 print(
-                f'generation {i} {j} | loss:{round(individual[0].fun, 4)} func: {beautify_system(individual[1])} param:{individual[0].x}')
+                    f'generation {i} {j} | loss:{round(individual[0].fun, 4)} func: {beautify_system(individual[1])} param:{individual[0].x}')
             loss.append(individual[0].fun)
             if best is None or individual[0].fun < best[0].fun:
                 best = individual
@@ -164,38 +169,7 @@ def main():
         avg_loss.append(np.mean([l for l in loss if l < 100]))  # Exclude loss > 100
         invalid.append(sum(l >= 100 for l in loss))
 
-    print(f'\nBest | Loss:{best[0].fun} func: {best[1]} param:{best[0].x}')
-    
-    # Compute R^2 for the best estimate
-
-
-    y_best = solve_ivp(best[2], (t[0], t[-1]), X0, args=tuple(best[0].x), t_eval=t, method=config.ivp_method).y.T
-
-    
-    r_squared = calculate_r_squared(y_target, y_best)
-    print(f"R^2 for the best estimate: {r_squared:.4f}")
-    
-    fig, axs = plt.subplots(2, 2, figsize=(12, 9))
-    
-    #SANDRA: ADDED THIS LINE
-    #plot_lorenz_3d_estimates(axs[0, 0], t, X0, y_target, [y_best], ["Best Estimate"], "Lorenz System Estimates")
-    
-    #SANDRA: COMMENTED OUT THE FOLLOWING LINE
-    #plot_3d_by_y(axs[0, 0], t, y_target, [y_best], ["Best"]) ### SIR
-    
-    plot_2d_by_func(axs[0, 0], config.target.func, config.target.betas) ### Lotka
-    # plot_2d_by_y(axs[0, 1], X0,[y_raw, y_target, y_best], ["TARGET_RAW", "TARGET_NOISED", "BEST"])
-    
-    plot_loss_by_iteration(axs[1, 0], min_loss, avg_loss)
-    plot_invalid_by_iteration(axs[1, 1], invalid)
-
-    note = f""" Target:{type(config.target).__name__} | G:{config.G} N:{config.N} M:{config.M} I:{config.I} J:{config.J} f0ps:{funcs_to_str(config.f0ps)} Composite:{config.allow_composite} | elite:{config.elite_rate} new:{config.new_rate} cross:{config.crossover_rate} mutate:{config.mutation_rate}| ivp:{config.ivp_method} min:{config.minimize_method}
-    Best Function: {beautify_system(best[1])}
-    Best Loss: {best[0]['fun']} Best Parameters: {best[0]['x']}"""
-    fig.text(0.03, 0.08, note, va='top', fontsize=10, bbox=dict(facecolor='white', alpha=0.8))
-    plt.tight_layout(rect=[0, 0.1, 1, 1])
-    plt.show()
-    
+    print(f'\nBest | Loss:{best[0].fun} func: {beautify_system(best[1])} param:{best[0].x}')
 
 if __name__ == "__main__":
     main()

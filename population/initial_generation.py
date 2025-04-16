@@ -1,12 +1,12 @@
 import copy
 import random as rd
 import sympy as sp
-from utils.symbolic_utils import t, create_variable, o
+from utils.symbolic_utils import t, x_1,x_2, x, create_variable, o, diff2
 from utils.functions import f
 from utils.numpy_conversion import save_systems_as_numpy_funcs
-
 from utils.mapping import convert_system_to_hash
 
+#remember to import x_2 when needed
 
 def generate_population(config):
     print("\n#### GENERATE INITIAL POPULATION ####")
@@ -25,6 +25,109 @@ def generate_population(config):
     return systems
 
 
+"""
+def generate_systems(N, config):
+    variables = [create_variable(i) for i in range(1, config.M + 1)]
+    v = copy.deepcopy(variables)
+    print(variables)
+
+    systems_hash_list = []
+    systems = []
+    n = 0
+    
+    while n < N:
+        system = []
+        valid_system = True
+        
+        for m in range(config.M):
+            terms = []
+            if rd.random() < 0.5:
+                terms.append(diff2_x1(variables[m]))
+            if rd.random()<0.5:
+                terms.append(diff2_x2(variables[m]))
+                
+            #for i in range(config.I-2):
+            while len(terms)<4:
+                term = generate_term(v, config, True, equation_idx=m)
+                if term is not None and not term in terms:
+                    terms.append(term)
+            
+            
+            non_zero_terms = [t for t in terms if t != 0 and t!=None]
+            non_zero_terms.sort(key=lambda x: len(str(x)))
+            
+            print(non_zero_terms)
+            system.append([sp.diff(variables[m], t), non_zero_terms])
+            #print(system)
+                
+            s_hash = convert_system_to_hash(system)
+            if s_hash not in systems_hash_list:        
+                systems.append(system)
+                systems_hash_list.append(s_hash)
+                n += 1
+        
+    return systems
+"""
+
+def generate_systems(N, config):
+    variables = [create_variable(i) for i in range(1, config.M + 1)]
+    v = copy.deepcopy(variables)
+    print(variables)
+    print(v)
+    systems_hash_list = []
+    systems = []
+    n = 0
+    total_attempts = 0
+    while n < N and total_attempts < 100:
+        total_attempts += 1
+        system = []
+        valid_system = True
+        required_terms = [4,4]  
+        
+        for m in range(config.M):
+            terms = []
+            
+            if rd.random() < 0.99 and m==0:
+                #terms.append(diff2_x1(variables[m]))
+                terms.append(diff2(variables[m]))
+            if rd.random()<0.99 and m==1:
+                terms.append(diff2(variables[m]))
+                
+            if rd.random()<0.99:
+                operator = o(0)
+                terms.append(operator(variables[0], variables[1]))
+                
+            #print("TERMS: ", terms)
+            
+            attempts = 0
+            while len([t for t in terms if t != 0]) < required_terms[m] and attempts < 1000:
+                attempts += 1
+                term = generate_term(v, config, True, equation_idx=m)  # Pass equation index
+                if term is not None and term != 0 and term not in terms:
+                    terms.append(term)
+            
+            non_zero_terms = [t for t in terms if t != 0]
+            non_zero_terms.sort(key=lambda x: len(str(x)))
+            if len(non_zero_terms) == required_terms[m]:
+                system.append([sp.diff(variables[m], t), non_zero_terms])
+            else:
+                valid_system = False
+                break
+        
+        if valid_system and len(system) == config.M:
+            s_hash = convert_system_to_hash(system)
+            if s_hash not in systems_hash_list:
+                systems.append(system)
+                systems_hash_list.append(s_hash)
+                n += 1
+        
+        if total_attempts >= 1000:
+            break
+
+    return systems
+
+
+"""
 def generate_systems(N, config):
     variables = [create_variable(i) for i in range(1, config.M + 1)]
     v = copy.deepcopy(variables)
@@ -39,26 +142,11 @@ def generate_systems(N, config):
             for i in range(config.I):
                 term = generate_term(v, config, i == 0)
                 if term is not None and not term in terms:
-                    terms.append(term) 
-            terms_sort = {'6': [], '9':[], '13':[]}
-            for term in terms:
-                #print(term)
-                #print(str(term))
-                #print(len(str(term)))
-                if(len(str(term))==6):
-                    terms_sort['6'].append(term)
-                elif(len(str(term))==9):
-                    terms_sort['9'].append(term)
-                else:
-                    terms_sort['13'].append(term)
-            terms_sorted = terms_sort['6'] + terms_sort['9'] + terms_sort['13']
-            #print("sorted terms are: ", terms_sorted)
-            terms = terms_sorted 
-            #print(terms)
-                
+                    terms.append(term)
             system.append([sp.diff(variables[m], t), terms])
 
         s_hash = convert_system_to_hash(system)
+        
         if not s_hash in systems_hash_list:
             systems.append(system)
             systems_hash_list.append(s_hash)
@@ -66,9 +154,55 @@ def generate_systems(N, config):
 
     return systems
 
+"""
+
+def generate_term(variables, config, non_empty, equation_idx=0):
+    term = None
+    var_list = []
+    j = 0
+    
+    """
+    # Define allowed functions for each equation
+    if equation_idx == 0:  # First equation: allow linear, quadratic
+        allowed_ops = [op for op in config.f0ps if op in [5, 6]]  # 5=linear, 6=quadratic, 7=cubic, 11,13=derivatives
+        weights = [0.5 if op==5 else 0.2 if op in [5,6] else 0.2 for op in allowed_ops]
+    else:  # Second equation: only allow linear terms
+        allowed_ops = [op for op in config.f0ps if op in [5, 6]]  # 5=linear, 11,13=derivatives
+        weights = [0.5 if op==5 else 0.4 for op in allowed_ops]
+    """
+    
+    allowed_ops = [op for op in config.f0ps if op in [5, 6]]  # 5=linear, 11,13=derivatives
+    weights = [0.5 for op in allowed_ops]
+    
+    if non_empty or rd.randint(0, 99) < 90:
+        chosen_vars = []
+        for var in variables:
+            #print("VAR IS: ", var)
+            base_name = str(var.func).split('(')[0]
+            if rd.random() < 0.5:
+                chosen_vars.append(create_variable(int(base_name.split('_')[1])))
+            else:
+                chosen_vars.append(create_variable(2))
+            
+        for var in chosen_vars:
+            if j == 0 or rd.randint(0, 99) < 90:
+                func = f(rd.choices(allowed_ops, weights=weights, k=1)[0])
+                var = func(var)
+                j += 1
+                var_list.append(var)
+                if j == config.J:
+                    break
+
+    if var_list:
+        term = var_list[0]
+
+    
+    return term
 
 
 """
+
+
 def generate_term(variables, config, non_empty):
     rd.shuffle(variables)
     term = None
@@ -76,25 +210,14 @@ def generate_term(variables, config, non_empty):
     j = 0
 
     #weights = [1 / len(config.f0ps)] * len(config.f0ps) # todo - term distribution
-    weights = [
-    0.8 if op == 5 else 
-    0.15 if op == 6 else 
-    0.1 / (len(config.f0ps) - 2)  # Remaining weight for other operators
-    for op in config.f0ps
-    ]
-
-    if non_empty or rd.randint(0, 99) < 90: # equation to have at least one term
+    weights = [0.5 if op == 5 else 0.5 / (len(config.f0ps) - 1) for op in config.f0ps]
+    if non_empty or rd.randint(0, 99) < 75: # equation to have at least one term
         for var in variables:
-            if j == 0 or rd.randint(0, 99) < 40:
+            if j == 0 or rd.randint(0, 99) < 25:
                 func = f(rd.choices(config.f0ps, weights=weights, k=1)[0])# todo
                 var = func(var)
                 j += 1
-                
-                #if config.allow_composite and j < config.J:  # limit applying composite to only once
-                #    if rd.randint(0, 99) < 60:
-                #        func = f(rd.choices(config.f0ps, weights=[1.0,0.0], k=1)[0])
-                #        var = func(var)
-                #        j += 1
+
                 var_list.append(var)
                 if j == config.J: break
 
@@ -103,306 +226,107 @@ def generate_term(variables, config, non_empty):
         for var in var_list[1:]:
             operator = o(0)
             term = operator(term, var)
-
+    print(term)
     return term
 
-"""
 
-def generate_term(variables, config, non_empty):
-    rd.shuffle(variables)
+
+def generate_term(variables, config, non_empty, equation_idx=0):
     term = None
     var_list = []
     j = 0
-
-    #weights = [1 / len(config.f0ps)] * len(config.f0ps) # todo - term distribution
-    weights = [
-    0.8 if op == 5 else 
-    0.2 if op == 6 else 
-    0.1 / (len(config.f0ps) - 2)  # Remaining weight for other operators
-    for op in config.f0ps
-    ]
-
-    if non_empty or rd.randint(0, 99) < 90: # equation to have at least one term
-        for index, var in enumerate(variables):
-        
-            if j == 0 or rd.randint(0, 99) < 40:
-                if index ==1:
-                    #FOR CASE 5,6 USE THIS
-                    func = f(5)
-                    #func= f(rd.choices(config.f0ps, weights=weights, k=1)[0])
-                
-                else:
-                    func = f(rd.choices(config.f0ps, weights=weights, k=1)[0])
-                
+    
+    # Define allowed functions for each equation
+    if equation_idx == 0:  # First equation: allow linear, quadratic, cubic
+        #allowed_ops = [op for op in config.f0ps if op in [5, 6, 7, 11, 13]]  # 5=linear, 6=quadratic, 7=cubic, 11,13=derivatives
+        weights = [0.3 if op==5 else 0.2 if op in [6,7] else 0.1 for op in config.f0ps]
+    else:  # Second equation: only allow linear terms
+        #allowed_ops = [op for op in config.f0ps if op in [5, 11, 13]]  # 5=linear, 11,13=derivatives
+        weights = [0.5 if op==5 else 0.1 for op in config.f0ps]
+    
+    if non_empty or rd.randint(0, 99) < 90:
+        chosen_vars = []
+        for var in variables:
+            base_name = str(var.func).split('(')[0]
+            if rd.random() < 0.9:
+                chosen_vars.append(create_variable(int(base_name.split('_')[1])))
+            else:
+                chosen_vars.append(create_variable(2))
+            
+        for var in chosen_vars:
+            if j == 0 or rd.randint(0, 99) < 25:
+                func = f(rd.choices(config.f0ps, weights=weights, k=1)[0])
                 var = func(var)
                 j += 1
                 var_list.append(var)
-                if j == config.J: break
+                if j == config.J:
+                    break
 
     if var_list:
         term = var_list[0]
-        for var in var_list[1:]:
-            operator = o(0)
-            term = operator(term, var)
-
-    return term
-
-
-
-
-"""
-
-def generate_term(variables, config, non_empty):
-    rd.shuffle(variables)
-    term = None
-    var_list = []
-    j = 0
-
-    # Prioritize constants and linear terms
-    weights = [0.4 if op == 0 else 0.4 if op == 5 else 0.2 for op in config.f0ps]
-    # Prioritize quadratic operators
-    f_op_weights = [0.9 if op == 6 else 0.1 for op in config.f0ps]
-
-    if non_empty or rd.randint(0, 99) < 75:  # Ensure at least one term in the equation
-        for i, var in enumerate(variables):
-            if i == 0:  # Apply composite operations only to the first variable
-                func = f(rd.choices(config.f0ps, weights=weights, k=1)[0])
-                var = func(var)  # Apply the first operation
-                j += 1
-
-                
-                var_list.append(var)
-            else:  # For additional variables, only apply simple operations
-                if rd.randint(0, 99) < 70:  # Adjust to ensure interaction terms like x^2y
-                    func = f(rd.choices(config.f0ps, weights=f_op_weights, k=1)[0])  # Prioritize quadratic terms
-                    var = func(var)
-                    var_list.append(var)
-                    j += 1
-                    if j == config.J:
-                        break
-
-    if var_list:
-        term = var_list[0]
-        for var in var_list[1:]:
-            operator=o(0)
-            #operator = o(rd.randint(0, 1))
-            term = operator(term, var)
-
-    return term
-
-def generate_term(variables, config, non_empty):
-    rd.shuffle(variables)  # Shuffle variables to randomize order
-    term = None
-    var_list = []
-    j = 0
-
-    # Prioritize constants and linear terms for non-composite operations
-    weights = [0.5 if op == 0 else 0.4 if op == 5 else 0.1 for op in config.f0ps]
-
-
-    if non_empty or rd.randint(0, 99) < 75:  # Ensure at least one term in the equation
-        for i, var in enumerate(variables):
-            if j == 0 or rd.randint(0, 99) < 75:  # Prioritize first variable or add additional variables
-                # Apply a function to the first variable (constant or linear)
-                func1 = f(rd.choices(config.f0ps, weights=weights, k=1)[0])
-                var = func1(var)  # Apply the operation (constant or linear)
-                j += 1
-
-                # Append the first variable to the list
-                var_list.append(var)
-
-                # Add additional variables with simple (non-composite) operations
-                for other_var in variables[1:]:
-                    if rd.randint(0, 99) < 45:  # Decide whether to add this variable
-                        var_list.append(other_var)  # Add the variable as-is (linear interaction)
-                        j += 1
-                        if j == config.J:
-                            break
-
-    if var_list:
-        term = var_list[0]
-        
-        for var in var_list[1:]:
-            operator = o(0)  # Prioritize multiplication operator for interactions (e.g., x * y)
-            term = operator(term, var)
     
     return term
+
 """
-
-
 def beautify_equation(eq, beta_start):
     lhs = eq[0]
-    lhs_str = f"d{str(lhs.args[0])}/dt"
-
+    # Extract just the function name (x_i) without arguments for the LHS
+    func_name = str(lhs.args[0].func).split('(')[0]
+    lhs_str = f"d{func_name}/dt"
+    
     replacements = {
         "sin": "sin", "cos": "cos", "tan": "tan", "exp": "exp",
         "**2": "²", "**3": "³", "**4": "⁴",
         "Derivative": "d",
+        "(t, x_1, x_2)": "",  # Remove function arguments
         "(t)": "",
+        "d(x_": "d²x_",  # Handle second derivatives more elegantly
+        ", (x_1, 2))": "/dx_1²",
+        ", (x_2, 2))": "/dx_2²",
+        ", (t, 2))": "/dt²"
     }
 
-    for i in range(1, 100):  # Adjust range as needed
+    for i in range(1, 100):
+        replacements[f"x_{i}(t, x_1, x_2)"] = f"x_{i}"
+        replacements[f"x_{i}(t, x)"] = f"x_{i}"
         replacements[f"x_{i}(t)"] = f"x_{i}"
-        replacements[f"Derivative(x_{i}(t), t)"] = f"dx_{i}/dt"
+        replacements[f"Derivative(x_{i}(t, x_1, x_2), t)"] = f"dx_{i}/dt"
+        replacements[f"Derivative(x_{i}(t, x_1, x_2), x_1)"] = f"dx_{i}/dx_1"
+        replacements[f"Derivative(x_{i}(t, x_1, x_2), x_2)"] = f"dx_{i}/dx_2"
         replacements[f"Derivative(x_{i}(t), (t, 2))"] = f"d²x_{i}/dt²"
+        replacements[f"Derivative(x_{i}(t, x_1, x_2), (x_1, 2))"] = f"d²x_{i}/dx_1²"
+        replacements[f"Derivative(x_{i}(t, x_1, x_2), (x_2, 2))"] = f"d²x_{i}/dx_2²"
+        replacements[f"Derivative(x_{i}(t, x), (x, 2))"] = f"dx_{i}/dx²"
 
-    # Split the right-hand side into individual terms
     beautified_terms = []
-    if not eq[1]:
-        beautified_terms.append('0')
-    else:
-        for i, term in enumerate(eq[1]):
+    beta_count = beta_start
+    if eq[1]:
+        # First beautify all terms
+        for term in eq[1]:
+            if term == 0:  # Skip zero terms completely
+                continue
             term_str = str(term)
             for old, new in replacements.items():
                 term_str = term_str.replace(old, new)
-            beautified_terms.append(f"beta_{beta_start + i}*({term_str})")
+            beautified_terms.append((term_str, beta_count))
+            beta_count += 1
+        
+        # Sort by length of the term (not including the beta part)
+        beautified_terms.sort(key=lambda x: len(x[0]))
+        # Convert to final format after sorting
+        beautified_terms = [f"beta_{beta}*({term})" for term, beta in beautified_terms]
 
     rhs_str = " + ".join(beautified_terms)
-
+    if not beautified_terms:  # Only if there are no terms at all
+        rhs_str = "0"
+    
     return f"{lhs_str} = {rhs_str}"
 
-
 def beautify_system(system):
-    beta_count = 0
-    beautified_equations = []
+    beta_start = 0
+    equations = []
     for eq in system:
-        beautified_eq = beautify_equation(eq, beta_count)
-        beautified_equations.append(beautified_eq)
-        beta_count += len(eq[1])
+        equations.append(beautify_equation(eq, beta_start))
+        beta_start += len(eq[1])
+    return equations
 
-    return beautified_equations
-
-
-def manual_sir_systems():
-    variables = [create_variable(i) for i in range(1, 4)]
-    linear = f(5)
-    mult = o(0)
-    div = o(1)
-
-    system0 = [
-        [sp.diff(variables[0], t),
-         [
-             mult(linear(variables[0]), linear(variables[1]))
-         ]
-         ],
-        [sp.diff(variables[1], t),
-         [
-             mult(linear(variables[0]), linear(variables[1])),
-             linear(variables[1]),
-         ]
-         ],
-        [sp.diff(variables[2], t),
-         [
-             linear(variables[1])
-         ]
-         ],
-    ]
-    return [system0]
-
-def manual_lotka_systems():
-    variables = [create_variable(i) for i in range(1, 3)]
-    linear = f(5)
-    mult = o(0)
-    div = o(1)
-
-    system0 = [
-        [sp.diff(variables[0], t),
-         [
-             linear(variables[0]),
-             mult(linear(variables[0]), linear(variables[1]))
-         ]
-         ],
-        [sp.diff(variables[1], t),
-         [
-             linear(variables[1]),
-             mult(linear(variables[0]), linear(variables[1]))
-         ]
-         ],
-    ]
-
-    system1 = [
-        [sp.diff(variables[0], t),
-         [
-             linear(variables[0]),
-             linear(variables[1])
-         ]
-         ],
-        [sp.diff(variables[1], t),
-         [
-             linear(variables[0]),
-             mult(linear(variables[0]), linear(variables[1]))
-         ]
-         ]
-    ]
-
-    system2 = [
-        [sp.diff(variables[0], t),
-         [
-             div(linear(variables[0]), linear(variables[1]))
-         ]
-         ],
-        [sp.diff(variables[1], t),
-         [
-             linear(variables[0]),
-             linear(variables[1])
-         ]
-         ]
-    ]
-
-    system3 = [
-        [sp.diff(variables[0], t),
-         [
-             mult(linear(variables[0]), linear(variables[1]))
-         ]
-         ],
-        [sp.diff(variables[1], t),
-         [
-             div(linear(variables[0]), linear(variables[1])),
-         ]
-         ]
-    ]
-
-    system4 = [
-        [sp.diff(variables[0], t),
-         [
-             linear(variables[0]),
-             div(linear(variables[0]), linear(variables[1]))
-         ]
-         ],
-        [sp.diff(variables[1], t),
-         [
-             linear(variables[0]),
-             mult(linear(variables[0]), linear(variables[1]))
-         ]
-         ]
-    ]
-    return [system0, system1, system2, system3] # return [system0, system1, system2, system3, system4]
-
-
-def manual_lorenz_systems():
-    variables = [create_variable(i) for i in range(1, 4)]
-    linear = f(5)
-    mult = o(0)
-
-    system0 = [
-        [sp.diff(variables[0], t),
-         [
-             linear(variables[0]),
-             linear(variables[1])
-         ]
-         ],
-        [sp.diff(variables[1], t),
-         [
-             linear(variables[0]),
-             mult(linear(variables[0]), linear(variables[2])),
-             linear(variables[1]),
-         ]
-         ],
-        [sp.diff(variables[2], t),
-         [
-             mult(linear(variables[0]), linear(variables[1])),
-             linear(variables[2])
-         ]
-         ],
-    ]
-    return [system0]

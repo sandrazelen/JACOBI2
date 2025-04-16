@@ -1,5 +1,5 @@
 import re
-
+import numpy as np
 
 def load_systems(filename):
     """Load the system of differential equations from the generated file."""
@@ -38,7 +38,15 @@ def count_betas_and_equations(filename):
 def create_ode_function(system):
     """Create an ODE function that can be used with scipy's solve_ivp."""
 
+
     def ode_func(t, X, *betas):
-        return system(X, betas, t)
+        #print(f"t: {t}, X: {X}, betas: {betas}")
+        result = system(X, betas, t)  # this is where the system is called
+        #print(f"Result from system: {result}")
+        #print(f"System output shape: {np.shape(result)}")
+        result = result.flatten()
+        #print("result system: ", result)
+        #print(f"System output shape: {np.shape(result)}")
+        return result
 
     return ode_func

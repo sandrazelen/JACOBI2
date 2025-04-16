@@ -1,3 +1,4 @@
+
 import random
 import copy
 import numpy as np
@@ -15,7 +16,12 @@ def generate_new_population(history, population, config):
 
     sorted_population = []
     scores = []
-    valid_entries = [(solved[0], ind) for solved, ind in zip(history, population) if not math.isinf(solved[0].fun)]
+    #valid_entries = [(solved[0], ind) for solved, ind in zip(history, population) if not math.isinf(solved[0].fun)]
+    valid_entries = [
+        (solved[0], ind)
+        for solved, ind in zip(history, population)
+        if not (math.isinf(solved[0].fun) or math.isnan(solved[0].fun))
+    ]
     for solved, ind in sorted(valid_entries, key=lambda x: x[0].fun):
         sorted_population.append(ind)
         scores.append(solved.fun)

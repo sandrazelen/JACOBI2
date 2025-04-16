@@ -1,5 +1,6 @@
 import time
 import numpy as np
+import traceback
 from scipy.integrate import solve_ivp
 from scipy.optimize import minimize, OptimizeResult
 
@@ -19,31 +20,65 @@ def simulate_system(ode_func, X0, t, betas, method, DEBUG):
     stop_event.terminal = True
 
     try:
+        #print("original betas:", betas)
         return solve_ivp(ode_func, (t[0], t[-1]), X0, t_eval=t, args=betas, method=method, events=stop_event)
     except Exception as error:
-        # if DEBUG: print("simulate_system error: ", error, betas)
+        if DEBUG: 
+            print("X0 shape:", np.shape(X0))
+            print("t shape:", np.shape(t))
+            print("betas:", betas)
+            print("simulate_system error: ", error, betas)
+            print("Detailed traceback:")
+            print(traceback.format_exc())
         return None
 
 
 def calculate_error(simulated, observed, DEBUG):
     """Calculate the mean squared error between simulated and observed data."""
     if simulated.status == -1:
-        if DEBUG: print(f"Shape mismatch: simulated {simulated.y.T.shape}, observed {observed.shape}. Skipping...")
+        if DEBUG: 
+            """
+            print("simulated y: shape ", simulated.y.T.shape)
+            print(type(simulated.y.T))
+            print("observed: ", observed)
+            print(type(observed))
+                  
+            print(type(simulated.y.T))  # Should be <class 'numpy.ndarray'>
+            print(simulated.y.T.dtype)  # Check data type (e.g., float64, int32)
+
+            # Check type and dtype of observed
+            print(type(observed))  # Should be <class 'tuple'>
+            print(type(observed[0]))  # Check the type of the first element in the tuple
+            print(len(observed[0]))
+            print(observed[0].dtype)
+            print("NEW: ")
+            """
+            observed = np.concatenate(observed, axis=1)
+            #print(combined_array)
+            #print(combined_array.shape)
+            print(f"Shape mismatch: simulated {simulated.y.T.shape}, observed {observed.shape}. Skipping...")
         return float('inf')
 
     # observed = (observed - np.mean(observed, axis=0)) / np.std(observed, axis=0)
     # simulated = (simulated.y.T - np.mean(simulated.y.T, axis=0)) / np.std(simulated.y.T, axis=0)
+    #print(simulated.y.T.shape)
+    observed = np.concatenate(observed, axis=1)
+    #print(observed.shape)
+    if(simulated.y.T.shape != observed.shape):
+        return float('inf')
     return np.mean((simulated.y.T - observed) ** 2)
 
 
 def objective_function(betas, ode_func, X0, t, observed_data, ivp_method, DEBUG):
     """Objective function to minimize: the error between simulated and observed data."""
-    w_reg = 0.00 # todo finetune
+    #w_reg = 0.00 # todo finetune
+    w_reg = 0.01  # Regularization weight
+    reg = w_reg * np.sum(np.abs(betas))
     simulated = simulate_system(ode_func, X0, t, tuple(betas), ivp_method, DEBUG)
     if simulated is None:
         if DEBUG: print("SOLVE_IVP FAILED")
         return float('inf')
-    reg = w_reg * np.sum(betas ** 2)
+    #reg = w_reg * np.sum(betas ** 2)
     error = calculate_error(simulated, observed_data, DEBUG)
     if DEBUG: print(f"betas: {betas} | error: {error} | regularization: {reg}")
     return error + reg
@@ -71,7 +106,9 @@ def estimate_parameters(ode_func, X0, t, observed_data, initial_guess, min_metho
             args=(ode_func, X0, t, observed_data, ivp_method, DEBUG),
             method=min_method,
             # tol=1e-6,   #todo - need tuning?
-            options={'maxiter': 1000},  # 'disp': True, 'gtol': 1e-6, 'eps': 1e-10}
+            
+            #options={'maxiter': 10000},  # 'disp': True, 'gtol': 1e-6, 'eps': 1e-10}
+            options={'maxiter': 10000},
             callback=OptimizeStopper(DEBUG, 30)
         )
     except TookTooLong as e:

@@ -1,3 +1,5 @@
+import scipy as sp 
+
 solved_map = {}  # Dictionary for system-to-ID mapping
 term_map = {}  # Dictionary for term-to-ID mapping
 term_counter = 0  # Counter for unique term IDs

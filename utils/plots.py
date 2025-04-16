@@ -295,3 +295,12 @@ def plot_lorenz_results(history, t, x0, best, y_target):
 
     plt.tight_layout()
     plt.show()
+
+def plot_wave_2d(ax, t, x, y_target, y_pred):
+    T, X = np.meshgrid(t, x)
+    ax.plot_surface(T, X, y_target, label="Target", alpha=0.6)
+    ax.plot_surface(T, X, y_pred, label="Predicted", alpha=0.6)
+    ax.set_title("Wave Equation Solutions")
+    ax.set_xlabel("Time")
+    ax.set_ylabel("Space")
+    ax.set_zlabel("Displacement")

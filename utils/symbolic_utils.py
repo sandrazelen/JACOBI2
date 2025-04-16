@@ -2,15 +2,37 @@ import sympy as sp
 import time
 
 t = sp.Symbol('t')
+x = sp.Symbol('x')
+x_1 = sp.Symbol('x_1')
+x_2 = sp.Symbol('x_2')
 
 def create_variable(i):
-    return sp.Function(f'x_{i}')(t)
+    return sp.Function(f'x_{i}')(t, x)
+
+
+"""
+def create_variable(i):
+    return sp.Function(f'x_{i}')(t, x_1, x_2)
+"""
+
 
 def diff(expr, var=t):
     return sp.diff(expr, var)
 
-def diff2(expr, var=t):
+def diff2(expr, var=x):
     return sp.diff(expr, var, 2)
+
+def diff_x1(expr):
+    return sp.diff(expr, x_1)
+
+def diff2_x1(expr):
+    return sp.diff(expr, x_1, 2)
+
+def diff_x2(expr):
+    return sp.diff(expr, x_2)
+
+def diff2_x2(expr):
+    return sp.diff(expr, x_2, 2)
 
 def o(j):
     switcher_o = {

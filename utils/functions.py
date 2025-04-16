@@ -41,7 +41,7 @@ def log(x):
     return sp.log(x)
 
 
-# todo add log
+"""
 all_functions = {
     0: ("one", one),
     1: ("sin", sin),
@@ -53,6 +53,47 @@ all_functions = {
     7: ("cube", cube),
     8: ("quart", quart),
     9: ("log", log)
+}
+"""
+
+x, y, t = sp.symbols('x y t')
+
+def diff_x(expr):
+    return sp.diff(expr, x)
+
+def diff2_x(expr):
+    return sp.diff(expr, x, 2)
+
+def diff_y(expr):
+    return sp.diff(expr, y)
+
+
+def diff2_y(expr):
+    return sp.diff(expr, y, 2)
+
+def diff_t(expr):
+    return sp.diff(expr, t)
+
+def diff2_t(expr):
+    return sp.diff(expr, t, 2)
+
+
+
+all_functions = {
+    0: ("one", one),
+    1: ("sin", sin),
+    2: ("cos", cos),
+    3: ("tan", tan),
+    4: ("exp", exp),
+    5: ("linear", linear),
+    6: ("square", square),
+    7: ("cube", cube),
+    8: ("quart", quart),
+    9: ("log", log),
+    10: ("diff_x", diff_x),       # First derivative w.r.t x
+    11: ("diff2_x", diff2_x),     # Second derivative w.r.t x
+    12: ("diff_y", diff_y),       # First derivative w.r.t y
+    13: ("diff2_y", diff2_y)
 }
 
 

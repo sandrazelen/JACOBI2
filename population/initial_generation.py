@@ -25,50 +25,6 @@ def generate_population(config):
     return systems
 
 
-"""
-def generate_systems(N, config):
-    variables = [create_variable(i) for i in range(1, config.M + 1)]
-    v = copy.deepcopy(variables)
-    print(variables)
-
-    systems_hash_list = []
-    systems = []
-    n = 0
-    
-    while n < N:
-        system = []
-        valid_system = True
-        
-        for m in range(config.M):
-            terms = []
-            if rd.random() < 0.5:
-                terms.append(diff2_x1(variables[m]))
-            if rd.random()<0.5:
-                terms.append(diff2_x2(variables[m]))
-                
-            #for i in range(config.I-2):
-            while len(terms)<4:
-                term = generate_term(v, config, True, equation_idx=m)
-                if term is not None and not term in terms:
-                    terms.append(term)
-            
-            
-            non_zero_terms = [t for t in terms if t != 0 and t!=None]
-            non_zero_terms.sort(key=lambda x: len(str(x)))
-            
-            print(non_zero_terms)
-            system.append([sp.diff(variables[m], t), non_zero_terms])
-            #print(system)
-                
-            s_hash = convert_system_to_hash(system)
-            if s_hash not in systems_hash_list:        
-                systems.append(system)
-                systems_hash_list.append(s_hash)
-                n += 1
-        
-    return systems
-"""
-
 def generate_systems(N, config):
     variables = [create_variable(i) for i in range(1, config.M + 1)]
     v = copy.deepcopy(variables)
@@ -87,18 +43,13 @@ def generate_systems(N, config):
         for m in range(config.M):
             terms = []
             
-            if rd.random() < 0.99 and m==0:
-                #terms.append(diff2_x1(variables[m]))
-                terms.append(diff2(variables[m]))
-            if rd.random()<0.99 and m==1:
+            if rd.random() < 0.75:
                 terms.append(diff2(variables[m]))
                 
-            if rd.random()<0.99:
+            if rd.random()<0.75:
                 operator = o(0)
                 terms.append(operator(variables[0], variables[1]))
                 
-            #print("TERMS: ", terms)
-            
             attempts = 0
             while len([t for t in terms if t != 0]) < required_terms[m] and attempts < 1000:
                 attempts += 1
@@ -127,49 +78,10 @@ def generate_systems(N, config):
     return systems
 
 
-"""
-def generate_systems(N, config):
-    variables = [create_variable(i) for i in range(1, config.M + 1)]
-    v = copy.deepcopy(variables)
-
-    systems_hash_list = []
-    systems = []
-    n = 0
-    while n < N:
-        system = []
-        for m in range(config.M):
-            terms = []
-            for i in range(config.I):
-                term = generate_term(v, config, i == 0)
-                if term is not None and not term in terms:
-                    terms.append(term)
-            system.append([sp.diff(variables[m], t), terms])
-
-        s_hash = convert_system_to_hash(system)
-        
-        if not s_hash in systems_hash_list:
-            systems.append(system)
-            systems_hash_list.append(s_hash)
-            n += 1
-
-    return systems
-
-"""
-
 def generate_term(variables, config, non_empty, equation_idx=0):
     term = None
     var_list = []
     j = 0
-    
-    """
-    # Define allowed functions for each equation
-    if equation_idx == 0:  # First equation: allow linear, quadratic
-        allowed_ops = [op for op in config.f0ps if op in [5, 6]]  # 5=linear, 6=quadratic, 7=cubic, 11,13=derivatives
-        weights = [0.5 if op==5 else 0.2 if op in [5,6] else 0.2 for op in allowed_ops]
-    else:  # Second equation: only allow linear terms
-        allowed_ops = [op for op in config.f0ps if op in [5, 6]]  # 5=linear, 11,13=derivatives
-        weights = [0.5 if op==5 else 0.4 for op in allowed_ops]
-    """
     
     allowed_ops = [op for op in config.f0ps if op in [5, 6]]  # 5=linear, 11,13=derivatives
     weights = [0.5 for op in allowed_ops]
@@ -177,7 +89,6 @@ def generate_term(variables, config, non_empty, equation_idx=0):
     if non_empty or rd.randint(0, 99) < 90:
         chosen_vars = []
         for var in variables:
-            #print("VAR IS: ", var)
             base_name = str(var.func).split('(')[0]
             if rd.random() < 0.5:
                 chosen_vars.append(create_variable(int(base_name.split('_')[1])))
@@ -196,78 +107,8 @@ def generate_term(variables, config, non_empty, equation_idx=0):
     if var_list:
         term = var_list[0]
 
-    
     return term
 
-
-"""
-
-
-def generate_term(variables, config, non_empty):
-    rd.shuffle(variables)
-    term = None
-    var_list = []
-    j = 0
-
-    #weights = [1 / len(config.f0ps)] * len(config.f0ps) # todo - term distribution
-    weights = [0.5 if op == 5 else 0.5 / (len(config.f0ps) - 1) for op in config.f0ps]
-    if non_empty or rd.randint(0, 99) < 75: # equation to have at least one term
-        for var in variables:
-            if j == 0 or rd.randint(0, 99) < 25:
-                func = f(rd.choices(config.f0ps, weights=weights, k=1)[0])# todo
-                var = func(var)
-                j += 1
-
-                var_list.append(var)
-                if j == config.J: break
-
-    if var_list:
-        term = var_list[0]
-        for var in var_list[1:]:
-            operator = o(0)
-            term = operator(term, var)
-    print(term)
-    return term
-
-
-
-def generate_term(variables, config, non_empty, equation_idx=0):
-    term = None
-    var_list = []
-    j = 0
-    
-    # Define allowed functions for each equation
-    if equation_idx == 0:  # First equation: allow linear, quadratic, cubic
-        #allowed_ops = [op for op in config.f0ps if op in [5, 6, 7, 11, 13]]  # 5=linear, 6=quadratic, 7=cubic, 11,13=derivatives
-        weights = [0.3 if op==5 else 0.2 if op in [6,7] else 0.1 for op in config.f0ps]
-    else:  # Second equation: only allow linear terms
-        #allowed_ops = [op for op in config.f0ps if op in [5, 11, 13]]  # 5=linear, 11,13=derivatives
-        weights = [0.5 if op==5 else 0.1 for op in config.f0ps]
-    
-    if non_empty or rd.randint(0, 99) < 90:
-        chosen_vars = []
-        for var in variables:
-            base_name = str(var.func).split('(')[0]
-            if rd.random() < 0.9:
-                chosen_vars.append(create_variable(int(base_name.split('_')[1])))
-            else:
-                chosen_vars.append(create_variable(2))
-            
-        for var in chosen_vars:
-            if j == 0 or rd.randint(0, 99) < 25:
-                func = f(rd.choices(config.f0ps, weights=weights, k=1)[0])
-                var = func(var)
-                j += 1
-                var_list.append(var)
-                if j == config.J:
-                    break
-
-    if var_list:
-        term = var_list[0]
-    
-    return term
-
-"""
 def beautify_equation(eq, beta_start):
     lhs = eq[0]
     # Extract just the function name (x_i) without arguments for the LHS

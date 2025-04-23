@@ -20,7 +20,7 @@ class Config:
         self.target = FisherKPP()
         
         self.G = 5 # Number of generations
-        self.N = 15 # Maximum number of population
+        self.N = 20 # Maximum number of population
         self.M = 2 # Maximum number of equations
         self.I = 4  # Maximum number of terms per equation
         self.J = 1  # Maximum number of functions per feature

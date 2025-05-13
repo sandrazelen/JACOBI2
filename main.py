@@ -17,22 +17,24 @@ from scipy.optimize import minimize
 
 class Config:
     def __init__(self):
-        self.target = FisherKPP()
-        
+        #self.target = FisherKPP()
+        self.target = FHN()
         self.G = 5 # Number of generations
         self.N = 20 # Maximum number of population
         self.M = 2 # Maximum number of equations
         self.I = 4  # Maximum number of terms per equation
         self.J = 1  # Maximum number of functions per feature
         self.allow_composite = False  # Composite Functions
-        self.f0ps = get_functions("5,6,11")
+        self.f0ps = get_functions("5,6,7,11, 13")
         
-        #self.ivp_method = 'Radau'
-        
+        self.ivp_method = 'Radau'
+        #self.ivp_method = 'RK45'
         #self.ivp_method = 'BDF'
-        self.ivp_method = 'LSODA'
+        #self.ivp_method = 'LSODA'
         self.minimize_method = 'L-BFGS-B'
-        
+        #self.minimize_method = 'COBYLA'
+        #self.minimize_method = 'Powell'
+       
         self.elite_rate = 0.2
         self.crossover_rate = 0.4
         self.mutation_rate = 0.6
@@ -51,22 +53,23 @@ class Config:
 def main():
     #######################################################################
     #                         PARAMETERS                                  #
-    #######################################################################
+    ################################
+    # c#######################################
 
     config = Config()
     
     # Time grid
+    
+    #t_span = np.linspace(0, 10, 15) 
+    
+    t_span = np.linspace(0, 1, 100) 
+    spatial_grid = np.linspace(0, 5, 10)  
+    
     """
-    t_span = np.linspace(0, 5, 100) 
-    
-    spatial_grid = np.linspace(0, 1, 100)  
-    
-    """
-    
     t_span = np.linspace(0, 20, 100) 
     
     spatial_grid = np.linspace(0, 30, 100)  
-
+    """
     X0 = config.target.X0
     X0 = np.array(X0)
     print(X0)
@@ -76,7 +79,7 @@ def main():
     print("Shape of X0:", X0.shape)
 
     # Target data for system (Fisher-KPP or FHN)
-    y_target = config.target.solve_fisher_kpp(t_span, spatial_grid)  
+    y_target = config.target.solve_fhn_system(t_span, spatial_grid)  
     print("Y TARGET IS : ", y_target)
 
     #######################################################################
@@ -116,17 +119,20 @@ def main():
                     ode_func = create_ode_function(system)
 
                     num_betas = sum(len(eq[1]) for eq in population[j])
+                    
                     """
                     initial_guess = np.concatenate(
                         #[np.random.uniform(-1.2, 1.5, size=num_betas)]
                         #[np.random.uniform(-1.5, 1.5, size=num_betas)]
-                        [np.random.uniform(-1.0, 1.0, size=num_betas)]
+                        #[np.random.uniform(-1.0, 1.1, size=num_betas)]
+                        [np.random.uniform(0.0, 0.0, size=num_betas)]
                     )
+                    
                     """
                     initial_guess = np.concatenate(
-                        [[1.5, -1.5, 1.2, 0.1, 1.2, -1.2, 0.72, 0.2][:num_betas], np.zeros(max(0, num_betas - 8))]
+                        [[-0.1, -1.0, 1.1, -1.0, 0.1, 0.1, 0.005, -0.01, 0.05, 0.05][:num_betas], np.zeros(max(0, num_betas - 10))]
                     )
-
+                    
                     solved = estimate_parameters(ode_func, X0, t_span, y_target, initial_guess , config.minimize_method,config.ivp_method, config.DEBUG)
             
                     add_individual_solved(system_hash, solved)

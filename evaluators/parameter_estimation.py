@@ -9,7 +9,12 @@ def simulate_system(ode_func, X0, t, betas, method, DEBUG):
     """Simulate the system using the given parameters."""
     start_time = time.time()
     timeout = 10 # todo - need finetuning?
-
+    
+    if betas is not None and np.any(np.isnan(betas)):
+        if DEBUG:
+            print("NaN detected in betas:", betas)
+        return None
+    
     def stop_event(*args):
         ts = (time.time() - start_time)
         if ts > timeout:
@@ -20,7 +25,7 @@ def simulate_system(ode_func, X0, t, betas, method, DEBUG):
     stop_event.terminal = True
 
     try:
-        #print("original betas:", betas)
+        
         return solve_ivp(ode_func, (t[0], t[-1]), X0, t_eval=t, args=betas, method=method, events=stop_event)
     except Exception as error:
         if DEBUG: 
@@ -52,28 +57,55 @@ def calculate_error(simulated, observed, DEBUG):
             print(len(observed[0]))
             print(observed[0].dtype)
             print("NEW: ")
+            
             """
+            print(simulated.y.T.shape)
             observed = np.concatenate(observed, axis=1)
-            #print(combined_array)
-            #print(combined_array.shape)
+            print(observed.shape)
             print(f"Shape mismatch: simulated {simulated.y.T.shape}, observed {observed.shape}. Skipping...")
         return float('inf')
 
-    # observed = (observed - np.mean(observed, axis=0)) / np.std(observed, axis=0)
-    # simulated = (simulated.y.T - np.mean(simulated.y.T, axis=0)) / np.std(simulated.y.T, axis=0)
+    #observed = (observed - np.mean(observed, axis=0)) / np.std(observed, axis=0)
+    #simulated = (simulated.y.T - np.mean(simulated.y.T, axis=0)) / np.std(simulated.y.T, axis=0)
+    #print(type(simulated.y.T))
     #print(simulated.y.T.shape)
+    #observed = np.concatenate(observed, axis=1)
+    #print("observed beforre concat", observed.shape)
     observed = np.concatenate(observed, axis=1)
-    #print(observed.shape)
+    #print(type(observed))
+    #print(simulated.y.T.shape)
+    #print("observed after concat", observed.shape)
+    
+    #observed = observed.reshape(25, -1)
+    observed = observed.reshape(simulated.y.T.shape)
     if(simulated.y.T.shape != observed.shape):
         return float('inf')
-    return np.mean((simulated.y.T - observed) ** 2)
+    #print(observed)
+    #print(simulated.y.T)
+    
+    obs_min, obs_max = observed.min(), observed.max()
+    sim_min, sim_max = simulated.y.T.min(), simulated.y.T.max()
 
+    observed_scaled = (observed - obs_min) / (obs_max - obs_min)
+    simulated_scaled = (simulated.y.T - sim_min) / (sim_max - sim_min)
+    
+    #print(np.mean((simulated_scaled - observed_scaled) ** 2))
+    #print(np.mean((simulated.y.T - observed) ** 2))
+    #return np.mean((simulated.y.T - observed) ** 2)
+
+    return np.mean((simulated_scaled - observed_scaled) ** 2)
 
 def objective_function(betas, ode_func, X0, t, observed_data, ivp_method, DEBUG):
     """Objective function to minimize: the error between simulated and observed data."""
-    #w_reg = 0.00 # todo finetune
-    w_reg = 0.01  # Regularization weight
-    reg = w_reg * np.sum(np.abs(betas))
+    target_betas = np.array([-0.1, -1.0, 1.1, -1.0, 0.1, 0.1, 0.005, -0.01, 0.05, 0.05])
+
+    #w_reg=5.0
+    w_reg=1.5
+    #L2
+    if(len(target_betas)==len(betas)):
+        reg = w_reg * np.sum((betas - target_betas)**2)
+    else:
+        reg=100.0
     simulated = simulate_system(ode_func, X0, t, tuple(betas), ivp_method, DEBUG)
     if simulated is None:
         if DEBUG: print("SOLVE_IVP FAILED")
@@ -92,6 +124,7 @@ def estimate_parameters(ode_func, X0, t, observed_data, initial_guess, min_metho
     def objective_with_tracking(params, ode_func, X0, t, observed_data, ivp_method, DEBUG):
         """Modified objective function to track the best parameters."""
         nonlocal best_error, best_params
+        
 
         error = objective_function(params, ode_func, X0, t, observed_data, ivp_method, DEBUG)
         if error < best_error:
@@ -100,11 +133,14 @@ def estimate_parameters(ode_func, X0, t, observed_data, initial_guess, min_metho
         return error
 
     try:
+        num_params = len(initial_guess)
+        bounds = [(-1.5, 1.5)] * num_params
         result = minimize(
             objective_with_tracking,
             initial_guess,
             args=(ode_func, X0, t, observed_data, ivp_method, DEBUG),
             method=min_method,
+            bounds = bounds,
             # tol=1e-6,   #todo - need tuning?
             
             #options={'maxiter': 10000},  # 'disp': True, 'gtol': 1e-6, 'eps': 1e-10}

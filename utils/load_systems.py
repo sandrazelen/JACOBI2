@@ -44,7 +44,10 @@ def create_ode_function(system):
         result = system(X, betas, t)  # this is where the system is called
         #print(f"Result from system: {result}")
         #print(f"System output shape: {np.shape(result)}")
+        
         result = result.flatten()
+        
+        
         #print("result system: ", result)
         #print(f"System output shape: {np.shape(result)}")
         return result

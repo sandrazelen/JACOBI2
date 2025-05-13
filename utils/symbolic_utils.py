@@ -3,11 +3,17 @@ import time
 
 t = sp.Symbol('t')
 x = sp.Symbol('x')
+y = sp.Symbol('y')
 x_1 = sp.Symbol('x_1')
 x_2 = sp.Symbol('x_2')
 
+"""
 def create_variable(i):
     return sp.Function(f'x_{i}')(t, x)
+"""
+
+def create_variable(i):
+    return sp.Function(f'x_{i}')(t, x, y)
 
 
 """
@@ -20,6 +26,9 @@ def diff(expr, var=t):
     return sp.diff(expr, var)
 
 def diff2(expr, var=x):
+    return sp.diff(expr, var, 2)
+
+def diffy(expr, var=y):
     return sp.diff(expr, var, 2)
 
 def diff_x1(expr):

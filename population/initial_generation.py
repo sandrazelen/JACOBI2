@@ -1,7 +1,7 @@
 import copy
 import random as rd
 import sympy as sp
-from utils.symbolic_utils import t, x_1,x_2, x, create_variable, o, diff2
+from utils.symbolic_utils import t, x_1,x_2, x, y, create_variable, o, diff2, diffy
 from utils.functions import f
 from utils.numpy_conversion import save_systems_as_numpy_funcs
 from utils.mapping import convert_system_to_hash
@@ -38,27 +38,48 @@ def generate_systems(N, config):
         total_attempts += 1
         system = []
         valid_system = True
-        required_terms = [4,4]  
+        required_terms = [6,4]  
         
         for m in range(config.M):
             terms = []
             
-            if rd.random() < 0.75:
+            #comment this part out; useful for testing what happens when right terms appear
+            if rd.random() < 0.99:
                 terms.append(diff2(variables[m]))
-                
-            if rd.random()<0.75:
-                operator = o(0)
-                terms.append(operator(variables[0], variables[1]))
+            if rd.random() < 0.99:
+                terms.append(diffy(variables[m]))
                 
             attempts = 0
             while len([t for t in terms if t != 0]) < required_terms[m] and attempts < 1000:
                 attempts += 1
-                term = generate_term(v, config, True, equation_idx=m)  # Pass equation index
+                term = generate_term(v, config, True, equation_idx=m) 
                 if term is not None and term != 0 and term not in terms:
                     terms.append(term)
             
             non_zero_terms = [t for t in terms if t != 0]
-            non_zero_terms.sort(key=lambda x: len(str(x)))
+            #print(non_zero_terms)
+            def sort_key(expr):
+                expr_str = str(expr)
+                length = len(expr_str)
+                
+                if '**3' in expr_str: 
+                    power_priority = 2  
+                elif '**2' in expr_str:  
+                    power_priority = 1 
+                else:  
+                    power_priority = 0 
+                
+                if 'x_1' in expr_str:
+                    var_priority = 0  
+                elif 'x_2' in expr_str:
+                    var_priority = 1 
+                else:
+                    var_priority = 2  
+                return (length, power_priority, var_priority)
+
+            non_zero_terms.sort(key=sort_key)
+            
+            #non_zero_terms.sort(key=lambda x: len(str(x)))
             if len(non_zero_terms) == required_terms[m]:
                 system.append([sp.diff(variables[m], t), non_zero_terms])
             else:
@@ -82,10 +103,21 @@ def generate_term(variables, config, non_empty, equation_idx=0):
     term = None
     var_list = []
     j = 0
-    
-    allowed_ops = [op for op in config.f0ps if op in [5, 6]]  # 5=linear, 11,13=derivatives
-    weights = [0.5 for op in allowed_ops]
-    
+
+    #comment the next few lines out for unbiased systems
+    if equation_idx == 1:  
+        allowed_ops = [5]  
+    else:
+        allowed_ops = [op for op in config.f0ps if op in [5, 6, 7]]  # Original behavior
+        
+    #weights = [0.5 for op in allowed_ops]
+    weights = []
+    for op in allowed_ops:
+        if op == 5: 
+            weights.append(1.0)
+        elif op in [6, 7]: 
+            weights.append(0.5)
+        
     if non_empty or rd.randint(0, 99) < 90:
         chosen_vars = []
         for var in variables:
@@ -129,6 +161,7 @@ def beautify_equation(eq, beta_start):
 
     for i in range(1, 100):
         replacements[f"x_{i}(t, x_1, x_2)"] = f"x_{i}"
+        replacements[f"x_{i}(t, x, y)"] = f"x_{i}"
         replacements[f"x_{i}(t, x)"] = f"x_{i}"
         replacements[f"x_{i}(t)"] = f"x_{i}"
         replacements[f"Derivative(x_{i}(t, x_1, x_2), t)"] = f"dx_{i}/dt"
@@ -138,6 +171,9 @@ def beautify_equation(eq, beta_start):
         replacements[f"Derivative(x_{i}(t, x_1, x_2), (x_1, 2))"] = f"d²x_{i}/dx_1²"
         replacements[f"Derivative(x_{i}(t, x_1, x_2), (x_2, 2))"] = f"d²x_{i}/dx_2²"
         replacements[f"Derivative(x_{i}(t, x), (x, 2))"] = f"dx_{i}/dx²"
+        replacements[f"Derivative(x_{i}(t, x, y), (x, 2))"] = f"dx_{i}/dx²"
+        replacements[f"Derivative(x_{i}(t, x, y), (y, 2))"] = f"dx_{i}/dx²"
+        
 
     beautified_terms = []
     beta_count = beta_start

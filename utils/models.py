@@ -67,18 +67,6 @@ class Brusselator():
         self.X0 = [1.0, 1.0]  
         self.betas = [1.0, -4.0, 1.0, 3.0, -1.0] 
 
-def fitzhugh_nagumo_func(t, X, a, b, epsilon, I_ext):
-    v, w = X
-    dotv = v - (v**3 / 3) - w + I_ext
-    dotw = epsilon * (v + a - b * w)
-    return np.array([dotv, dotw])
-
-class FitzHughNagumo():
-    def __init__(self):
-        self.func = fitzhugh_nagumo_func
-        self.N = 2  
-        self.X0 = [0.0, 0.0]  
-        self.betas = [0.7, 0.8, 0.08, 0.5]
         
 """
 class WaveEquation:
@@ -106,8 +94,10 @@ def fhn_system(t,U, D1, D2, a, b, epsilon):
     d2v_dx2 = np.gradient(np.gradient(v, axis=0), axis=0)
     d2v_dy2 = np.gradient(np.gradient(v, axis=1), axis=1)
     
-    u = np.clip(u, 1e-5, 1e2) 
-    v = np.clip(v, 1e-5, 1e2) 
+    #u = np.clip(u, 1e-5, 1e2) 
+    #v = np.clip(v, 1e-5, 1e2) 
+    u = np.clip(u, -1e1, 1e1)
+    v = np.clip(v, -1e1, 1e1)
 
     #PDE 
     du_dt = D1 * (d2u_dx2 + d2u_dy2) + (a+1)*u**2 - a * u - u**3 - v
@@ -122,8 +112,8 @@ class FHN:
         
         #IC for u and v
         self.X0 = [
-            np.random.uniform(0.1, 0.3, (100, 100)),  
-            np.random.uniform(0.1, 0.3, (100, 100))  
+            np.random.uniform(0.1, 0.1, (10, 10)),  
+            np.random.uniform(0.2, 0.2, (10, 10))  
         ]
         
         self.betas = [0.1, 0.05, 0.1, 0.5, 0.01]  # D1, D2, a, b, epsilon
@@ -148,49 +138,6 @@ class FHN:
 
         return u_sol, v_sol
 
-"""
-def fisher_kpp_func(t, U, D, r1, r2):
-
-    u = U
-    
-    d2u_dx2 = np.gradient(np.gradient(u, axis=0), axis=0)
-    d2u_dy2 = np.gradient(np.gradient(u, axis=1), axis=1)
-    
-    # Apply Fisher-KPP equation
-    du_dt = D * (d2u_dx2 + d2u_dy2) + r1 * u + r2* u**2
-    
-    return du_dt
-
-class FisherKPP:
-    def __init__(self):
-        self.func = fisher_kpp_func
-        self.N = 1  # Single variable u
-        
-        # Initial condition: small perturbation around zero
-        self.X0 = np.random.uniform(0.01, 0.02, (100, 100))
-        
-        self.betas = [0.1, 1.0, -1.0]  # D (diffusivity), r (growth rate), K (carrying capacity)
-        
-    def solve_fisher_kpp(self, t_span, dt):
-        u_sol = np.zeros((len(t_span), *self.X0.shape))
-        
-        # Initial condition
-        u_sol[0] = self.X0
-        
-        # Time stepping
-        for t_idx in range(1, len(t_span)):
-            t = t_span[t_idx]
-            
-            U = u_sol[t_idx-1]
-            du_dt = self.func(t, U, *self.betas)  # Call equation function
-            
-            u_sol[t_idx] = u_sol[t_idx-1] + du_dt * dt
-        
-        return u_sol
-"""
-
-
-
 
 def fisher_kpp_system(t, U, D1, D2, r1, r2, alpha, beta):
     """
@@ -208,42 +155,6 @@ def fisher_kpp_system(t, U, D1, D2, r1, r2, alpha, beta):
     
     return np.array([du_dt, dv_dt])
 
-"""
-class FisherKPP:
-    def __init__(self):
-        self.func = fisher_kpp_system
-        self.N = 2  # Two variables (u, v)
-        
-        # Smooth initial profile: Gaussian distribution or sine wave
-        x = np.linspace(0, 10, 100)
-        self.X0 = [
-            np.exp(-0.5 * (x - 5)**2),  # u initial (Gaussian profile centered at 5)
-            np.sin(x)                    # v initial (sine wave profile)
-        ]
-        
-        # Model parameters: D1, D2, r1, r2, alpha, beta
-        self.betas = [0.1, 0.2, 1.5, 1.2, 0.8, 0.6] 
-    
-    def solve_fisher_kpp(self, t_span, dt):
-        u_sol = np.zeros((len(t_span), *self.X0[0].shape))
-        v_sol = np.zeros((len(t_span), *self.X0[1].shape))
-        
-        # Initial conditions
-        u_sol[0] = self.X0[0]
-        v_sol[0] = self.X0[1]
-        
-        # Time stepping
-        for t_idx in range(1, len(t_span)):
-            t = t_span[t_idx]
-            U = [u_sol[t_idx-1], v_sol[t_idx-1]]
-            du_dt, dv_dt = self.func(t, U, *self.betas)  # Call system function
-            
-            u_sol[t_idx] = u_sol[t_idx-1] + du_dt * dt
-            v_sol[t_idx] = v_sol[t_idx-1] + dv_dt * dt
-        
-        return u_sol, v_sol
-
-"""
 
 class FisherKPP:
     def __init__(self):
@@ -252,8 +163,8 @@ class FisherKPP:
         
         # Initial conditions: small perturbation around zero
         self.X0 = [
-            np.random.uniform(0.1, 0.2, (100,)),  # u initial
-            np.random.uniform(0.1, 0.2, (100,))   # v initial
+            np.random.uniform(0.1, 0.1, (100,)),  # u initial
+            np.random.uniform(0.1, 0.1, (100,))   # v initial
         ]
         
         # Model parameters: D1, D2, r1, r2, alpha, beta
@@ -269,7 +180,6 @@ class FisherKPP:
         
         u_min, u_max = np.min(self.X0[0]), np.max(self.X0[0])
         v_min, v_max = np.min(self.X0[1]), np.max(self.X0[1])
-
         
         # Time stepping
         for t_idx in range(1, len(t_span)):
@@ -281,8 +191,11 @@ class FisherKPP:
             v_next = v_sol[t_idx-1] + dv_dt * dt
 
             # Dynamically clip based on historical min/max
-            u_next_clipped = np.clip(u_next, u_min, u_max)
-            v_next_clipped = np.clip(v_next, v_min, v_max)
+            #u_next_clipped = np.clip(u_next, u_min, u_max)
+            #v_next_clipped = np.clip(v_next, v_min, v_max)
+
+            u_next_clipped = np.clip(u_next, 0, 1)
+            v_next_clipped = np.clip(v_next, 0, 1)
 
             u_sol[t_idx] = u_next_clipped
             v_sol[t_idx] = v_next_clipped
